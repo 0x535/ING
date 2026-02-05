@@ -48,7 +48,7 @@ app.get('/panel', (req, res) => {
   res.sendFile(__dirname + '/access.html');
 });
 
-app.post('/panel/login', (req, res) => {
+app.post('/panel', (req, res) => {
   const { user, pw } = req.body;
   if (user === PANEL_USER && pw === PANEL_PASS) {
     req.session.authed = true;
@@ -393,3 +393,4 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   currentDomain = process.env.RAILWAY_STATIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
 });
+
